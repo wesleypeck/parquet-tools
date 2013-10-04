@@ -1,0 +1,17 @@
+*.class
+.project
+.classpath
+.settings
+target
+# Package Files #
+*.jar
+*.war
+*.ear
+*.iml
+*.ipr
+*.iws
+*.orig
+*.rej
+.cache
+dependency-reduced-pom.xml
+.idea/*
