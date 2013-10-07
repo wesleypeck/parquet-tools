@@ -41,9 +41,13 @@ where <input> is the parquet file to print to stdout
 
 usage: parquet-tools dump [option...] <input>
 where option is one of:
-       --debug     Disable color output even if supported
-    -h,--help      Show this help string
-       --no-color  Disable color output even if supported
+    -c,--column <arg>  Dump only the given column, can be specified more than
+                       once
+    -d,--disable-data  Do not dump column data
+       --debug         Disable color output even if supported
+    -h,--help          Show this help string
+    -m,--disable-meta  Do not dump row group and page metadata
+       --no-color      Disable color output even if supported
 where <input> is the parquet file to print to stdout
 ```
 
