@@ -119,7 +119,6 @@ public class PrettyPrintWriter extends PrintWriter {
   private final Formatter formatter;
   private final ArrayList<Line> buffer;
 
-  private final boolean autoFlush;
   private final boolean autoColumn;
   private final boolean autoCrop;
   private final Span appendToLongLine;
@@ -128,6 +127,8 @@ public class PrettyPrintWriter extends PrintWriter {
   private final char columnSeparator;
   private final int maxColumns;
   private final int columnPadding;
+  private final long maxBufferedLines;
+  private final boolean flushOnTab;
   private final WhiteSpaceHandler whiteSpaceHandler;
   private int tabLevel;
   private String colorMode;
@@ -138,10 +139,9 @@ public class PrettyPrintWriter extends PrintWriter {
   private PrettyPrintWriter(OutputStream out, boolean autoFlush,
     boolean autoColumn, boolean autoCrop, Span appendToLongLine,
     int consoleWidth, int tabWidth, char columnSeparator,
-    int maxColumns, int columnPadding, 
-    WhiteSpaceHandler whiteSpaceHandler) {
+    int maxColumns, int columnPadding, long maxBufferedLines, 
+    boolean flushOnTab, WhiteSpaceHandler whiteSpaceHandler) {
     super(out, autoFlush && !autoColumn);
-    this.autoFlush = autoFlush;
     this.autoColumn = autoColumn;
     this.autoCrop = autoCrop;
     this.appendToLongLine = appendToLongLine;
@@ -149,7 +149,9 @@ public class PrettyPrintWriter extends PrintWriter {
     this.tabWidth = tabWidth;
     this.columnSeparator = columnSeparator;
     this.maxColumns = maxColumns;
+    this.maxBufferedLines = maxBufferedLines;
     this.columnPadding = columnPadding;
+    this.flushOnTab = flushOnTab;
     this.whiteSpaceHandler = whiteSpaceHandler;
 
     this.buffer = new ArrayList<Line>();
@@ -169,6 +171,7 @@ public class PrettyPrintWriter extends PrintWriter {
   public void setTabLevel(int level) {
     this.tabLevel = level;
     this.tabs = Strings.repeat(" ", tabWidth * level);
+    if (flushOnTab) flushColumns();
   }
 
   public void incrementTabLevel() {
@@ -238,6 +241,10 @@ public class PrettyPrintWriter extends PrintWriter {
   }
 
   public void flushColumns() {
+      flushColumns(false);
+  }
+
+  private void flushColumns(boolean preserveLast) {
     int size = buffer.size();
 
     int[] widths = null;
@@ -262,22 +269,30 @@ public class PrettyPrintWriter extends PrintWriter {
         super.out.append(LINE_SEP);
       }
 
-      Line line = buffer.get(size - 1);
-      if (widths != null) {
-        line = toColumns(widths, line);
-      }
+      if (!preserveLast) {
+        Line line = buffer.get(size - 1);
+        if (widths != null) {
+          line = toColumns(widths, line);
+        }
 
-      fixupLine(line);
-      builder.setLength(0);
-      line.toString(builder);
-      super.out.append(builder.toString());
+        fixupLine(line);
+        builder.setLength(0);
+        line.toString(builder);
+        super.out.append(builder.toString());
+      }
 
       super.out.flush();
     } catch (IOException ex) {
     }
 
+    Line addback = null;
+    if (preserveLast) {
+        addback = buffer.get(size - 1);
+    }
+
     buffer.clear();
-    buffer.add(new Line());
+    if (addback != null) buffer.add(addback);
+    else buffer.add(new Line());
   }
 
   private void flushIfNeeded() {
@@ -285,8 +300,8 @@ public class PrettyPrintWriter extends PrintWriter {
   }
 
   private void flushIfNeeded(boolean preserveLast) {
-    if (autoFlush && !autoColumn) {
-      flushColumns();
+    if (!autoColumn || buffer.size() > maxBufferedLines) {
+      flushColumns(preserveLast);
     }
   }
 
@@ -693,18 +708,21 @@ public class PrettyPrintWriter extends PrintWriter {
     private char columnSeparator;
     private int maxColumns;
     private int columnPadding;
+    private long maxBufferedLines;
 
     private boolean autoCrop;
     private int consoleWidth;
     private Span appendToLongLine;
 
     private int tabWidth;
+    private boolean flushOnTab;
     private WhiteSpaceHandler whiteSpaceHandler;
 
     public Builder(OutputStream out) {
       this.out = out;
       this.autoFlush = false;
       this.autoColumn = false;
+      this.flushOnTab = false;
       this.columnSeparator = DEFAULT_COLUMN_SEP;
       this.maxColumns = DEFAULT_MAX_COLUMNS;
       this.columnPadding = DEFAULT_COLUMN_PADDING;
@@ -713,6 +731,7 @@ public class PrettyPrintWriter extends PrintWriter {
       this.appendToLongLine = null;
       this.tabWidth = DEFAULT_TABS;
       this.whiteSpaceHandler = null;
+      this.maxBufferedLines = Long.MAX_VALUE;
     }
 
     public Builder withAutoFlush() {
@@ -769,8 +788,18 @@ public class PrettyPrintWriter extends PrintWriter {
       return this;
     }
 
+    public Builder withMaxBufferedLines(long maxBufferedLines) {
+        this.maxBufferedLines = maxBufferedLines;
+        return this;
+    }
+
+    public Builder withFlushOnTab() {
+        this.flushOnTab = true;
+        return this;
+    }
+
     public PrettyPrintWriter build() {
-      return new PrettyPrintWriter(out, autoFlush, autoColumn, autoCrop, appendToLongLine, consoleWidth, tabWidth, columnSeparator, maxColumns, columnPadding, whiteSpaceHandler);
+      return new PrettyPrintWriter(out, autoFlush, autoColumn, autoCrop, appendToLongLine, consoleWidth, tabWidth, columnSeparator, maxColumns, columnPadding, maxBufferedLines, flushOnTab, whiteSpaceHandler);
     }
   }
 

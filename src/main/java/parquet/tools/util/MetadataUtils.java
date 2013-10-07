@@ -80,12 +80,14 @@ public class MetadataUtils {
     long rows = meta.getRowCount();
     long tbs = meta.getTotalByteSize();
 
-    out.format("block%s: RC:%d TS:%d", (num == null ? "" : " " + num), rows, tbs);
-    out.println();
+    out.format("row group%s: RC:%d TS:%d%n", (num == null ? "" : " " + num), rows, tbs);
     out.rule('-');
-  
+    showDetails(out, meta.getColumns());
+  }
+
+  public static void showDetails(PrettyPrintWriter out, List<ColumnChunkMetaData> ccmeta) {
     Map<String,Object> chunks = new LinkedHashMap<String,Object>();
-    for (ColumnChunkMetaData cmeta : meta.getColumns()) {
+    for (ColumnChunkMetaData cmeta : ccmeta) {
       String[] path = cmeta.getPath().toArray();
 
       Map<String,Object> current = chunks;

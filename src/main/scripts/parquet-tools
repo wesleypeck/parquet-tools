@@ -32,12 +32,17 @@ if [ ! -x "${JAVACMD}" ]; then
 fi
 
 # Determine if we are outputting to a terminal
-[ -t 1 ] && TERMOUT="true"
+if [ -z "${TERMOUT}" ]; then
+    [ -t 1 ] && TERMOUT="true"
+    [ -t 1 ] || TERMOUT="false"
+fi
+
+export TERMOUT
 
 # Attempt to detect terminal information
 TPUT=$(which tput)
 
-if [ -n "${TERMOUT}" ]; then
+if [ "${TERMOUT}" == "true" ]; then
   if [ -z "${COLUMNS}" ] && [ -n "${TPUT}" ]; then
     TPUTCOLS=$(${TPUT} cols)
     if [ $? -eq 0 ]; then
@@ -66,7 +71,6 @@ if [ -n "${TERMOUT}" ]; then
     esac
   fi
 
-  [ -z "${TERMOUT}" ] || export TERMOUT
   [ -z "${COLUMNS}" ] || export COLUMNS
   [ -z "${LINES}" ] || export LINES
   [ -z "${COLORS}" ] || export COLORS
